@@ -84,7 +84,7 @@ export default function Game() {
   useEffect(() => {
     const interval = setInterval(() => {
       pipes.forEach((pipePair) => {
-        pipePair.x -= 4;
+        pipePair.x -= 1.5;
 
         // Reset pipes when they exit screen
         if (pipePair.x < -pipeWidth) {
