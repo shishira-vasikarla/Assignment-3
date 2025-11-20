@@ -1,0 +1,50 @@
+body {
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(to top, #a8edea, #fed6e3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  
+  .game-container {
+    text-align: center;
+    font-family: Poppins, sans-serif;
+  }
+  
+  .score {
+    font-size: 24px;
+    margin-bottom: 10px;
+    font-weight: bold;
+  }
+  
+  .game-box {
+    background: white;
+    border: 4px solid #333;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .player {
+    width: 50px;
+    height: 50px;
+    background-image: url("https://cdn-icons-png.flaticon.com/512/2922/2922506.png");
+    background-size: cover;
+    position: absolute;
+  }
+  
+  .pipe {
+    width: 60px;
+    background-color: #ff5252;
+    position: absolute;
+  }
+  
+  .top-pipe {
+    top: 0;
+  }
+  
+  .bottom-pipe {
+    bottom: 0;
+  }
+  
