@@ -47,15 +47,15 @@ export default function Game() {
   const pipeWidth = 60;
   const gapHeight = 120;
 
-  // Handle jump (simple upward-downward motion)
+  // Handle jump
   const jump = useCallback(() => {
     if (isJumping) return;
     setIsJumping(true);
 
     let count = 0;
     const interval = setInterval(() => {
-      if (count < 15) setPlayerY((prev) => prev + 8);       // Move up
-      else if (count < 30) setPlayerY((prev) => prev - 8);  // Move down
+      if (count < 15) setPlayerY((prev) => prev + 8); // move up
+      else if (count < 30) setPlayerY((prev) => prev - 8); // move down
       else {
         clearInterval(interval);
         setIsJumping(false);
@@ -64,7 +64,7 @@ export default function Game() {
     }, 20);
   }, [isJumping]);
 
-  // Keyboard Movement
+  // Keyboard movement
   useEffect(() => {
     const handleKey = (e) => {
       if (e.code === "Space") jump();
@@ -82,14 +82,14 @@ export default function Game() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [jump]);
 
-  // GAME LOOP: Move pipes, update height, collisions, scoring
+  // GAME LOOP: move pipes, detect collisions, scoring
   useEffect(() => {
     const interval = setInterval(() => {
       pipes.forEach((pipePair) => {
-        // Move pipes slowly
+        // Move pipes left
         pipePair.x -= 1.5;
 
-        // Reset pipes when they exit screen
+        // Reset pipes when offscreen
         if (pipePair.x < -pipeWidth) {
           pipePair.x = gameWidth + Math.random() * 200;
           pipePair.passed = false;
@@ -98,7 +98,7 @@ export default function Game() {
 
         const topHeight = pipePair.topHeight;
 
-        // Apply CSS to pipe DOM
+        // Render pipes
         if (pipePair.top.current && pipePair.bottom.current) {
           pipePair.top.current.style.height = topHeight + "px";
           pipePair.top.current.style.left = pipePair.x + "px";
@@ -108,49 +108,52 @@ export default function Game() {
           pipePair.bottom.current.style.left = pipePair.x + "px";
         }
 
-        // SCORING
+        // SCORE when player passes pipe
         if (!pipePair.passed && pipePair.x + pipeWidth < playerX) {
           setScore((s) => s + 1);
           pipePair.passed = true;
         }
 
-        // COLLISION DETECTION (CORRECT & SIMPLE)
-        if (pipePair.top.current && pipePair.bottom.current) {
-          const hitX =
-            playerX + playerSize > pipePair.x &&
-            playerX < pipePair.x + pipeWidth;
+        // ----------------------
+        // PERFECT COLLISION LOGIC
+        // ----------------------
 
-          if (hitX) {
-            const gapStart = topHeight;
-            const gapEnd = topHeight + gapHeight;
+        const playerLeft = playerX;
+        const playerRight = playerX + playerSize;
+        const playerBottom = playerY;
+        const playerTop = playerY + playerSize;
 
-            const playerBottomY = playerY;
-            const playerTopY = playerY + playerSize;
+        const pipeLeft = pipePair.x;
+        const pipeRight = pipePair.x + pipeWidth;
 
-            // Player must stay inside gap
-            const isInsideGap =
-              playerBottomY > gapStart && playerTopY < gapEnd;
+        // Check horizontal overlap (actual touching)
+        const touchingX =
+          playerRight > pipeLeft && playerLeft < pipeRight;
 
-            if (!isInsideGap) {
-              alert("💥 Game Over!");
-              window.location.reload();
-            }
+        if (touchingX) {
+          const gapStart = topHeight;
+          const gapEnd = topHeight + gapHeight;
+
+          const hitTopPipe = playerTop < gapStart;
+          const hitBottomPipe = playerBottom > gapEnd;
+
+          // Only end game if ACTUALLY touching pipes
+          if (hitTopPipe || hitBottomPipe) {
+            alert("💥 GAME OVER!\nFinal Score: " + score);
+            window.location.reload();
           }
         }
       });
     }, 20);
 
     return () => clearInterval(interval);
-  }, [playerX, playerY, pipes]);
+  }, [playerX, playerY, pipes, score]);
 
   return (
     <div className="game-container">
       <div className="score">Score: {score}</div>
 
-      <div
-        className="game-box"
-        style={{ width: gameWidth, height: gameHeight }}
-      >
+      <div className="game-box" style={{ width: gameWidth, height: gameHeight }}>
         {/* Player */}
         <div
           ref={playerRef}
