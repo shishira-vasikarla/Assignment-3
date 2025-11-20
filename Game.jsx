@@ -17,19 +17,18 @@ export default function Game() {
         bottom: pipe1BottomRef,
         x: 600,
         passed: false,
-        topHeight: Math.random() * 120,  // NEW
+        topHeight: Math.random() * 120,
       },
       {
         top: pipe2TopRef,
         bottom: pipe2BottomRef,
         x: 900,
         passed: false,
-        topHeight: Math.random() * 120,  // NEW
+        topHeight: Math.random() * 120,
       },
     ],
     []
   );
-  
 
   // Game size
   const gameWidth = 600;
@@ -48,15 +47,15 @@ export default function Game() {
   const pipeWidth = 60;
   const gapHeight = 120;
 
-  // Handle jump
+  // Handle jump (simple upward-downward motion)
   const jump = useCallback(() => {
     if (isJumping) return;
     setIsJumping(true);
 
     let count = 0;
     const interval = setInterval(() => {
-      if (count < 15) setPlayerY((prev) => prev + 8);
-      else if (count < 30) setPlayerY((prev) => prev - 8);
+      if (count < 15) setPlayerY((prev) => prev + 8);       // Move up
+      else if (count < 30) setPlayerY((prev) => prev - 8);  // Move down
       else {
         clearInterval(interval);
         setIsJumping(false);
@@ -70,10 +69,10 @@ export default function Game() {
     const handleKey = (e) => {
       if (e.code === "Space") jump();
 
-      // Horizontal movement
       if (e.code === "ArrowRight") {
         setPlayerX((x) => Math.min(x + 10, gameWidth - playerSize));
       }
+
       if (e.code === "ArrowLeft") {
         setPlayerX((x) => Math.max(x - 10, 0));
       }
@@ -83,60 +82,56 @@ export default function Game() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [jump]);
 
-  // Game loop → move pipes + collisions + scoring
+  // GAME LOOP: Move pipes, update height, collisions, scoring
   useEffect(() => {
     const interval = setInterval(() => {
       pipes.forEach((pipePair) => {
         // Move pipes slowly
         pipePair.x -= 1.5;
-  
+
         // Reset pipes when they exit screen
         if (pipePair.x < -pipeWidth) {
           pipePair.x = gameWidth + Math.random() * 200;
           pipePair.passed = false;
-  
-          // NEW fixed height for the next cycle
           pipePair.topHeight = Math.random() * (gameHeight - gapHeight - 20);
         }
-  
-        // FIX: Use the stored height (NO MORE RANDOM EVERY FRAME)
+
         const topHeight = pipePair.topHeight;
-  
-        // Apply CSS
+
+        // Apply CSS to pipe DOM
         if (pipePair.top.current && pipePair.bottom.current) {
           pipePair.top.current.style.height = topHeight + "px";
           pipePair.top.current.style.left = pipePair.x + "px";
-  
+
           pipePair.bottom.current.style.height =
             gameHeight - (topHeight + gapHeight) + "px";
           pipePair.bottom.current.style.left = pipePair.x + "px";
         }
-  
+
         // SCORING
         if (!pipePair.passed && pipePair.x + pipeWidth < playerX) {
           setScore((s) => s + 1);
           pipePair.passed = true;
         }
-  
-        // COLLISION
-        const playerTop = gameHeight - (playerY + playerSize);
-        const playerBottom = gameHeight - playerY;
-  
+
+        // COLLISION DETECTION (CORRECT & SIMPLE)
         if (pipePair.top.current && pipePair.bottom.current) {
-          const topH = pipePair.top.current.offsetHeight;
-          const bottomH = pipePair.bottom.current.offsetHeight;
-  
           const hitX =
             playerX + playerSize > pipePair.x &&
             playerX < pipePair.x + pipeWidth;
-  
+
           if (hitX) {
-            if (playerTop < topH) {
-              alert("💥 Game Over!");
-              window.location.reload();
-            }
-  
-            if (playerBottom > gameHeight - bottomH) {
+            const gapStart = topHeight;
+            const gapEnd = topHeight + gapHeight;
+
+            const playerBottomY = playerY;
+            const playerTopY = playerY + playerSize;
+
+            // Player must stay inside gap
+            const isInsideGap =
+              playerBottomY > gapStart && playerTopY < gapEnd;
+
+            if (!isInsideGap) {
               alert("💥 Game Over!");
               window.location.reload();
             }
@@ -144,10 +139,10 @@ export default function Game() {
         }
       });
     }, 20);
-  
+
     return () => clearInterval(interval);
   }, [playerX, playerY, pipes]);
-  
+
   return (
     <div className="game-container">
       <div className="score">Score: {score}</div>
