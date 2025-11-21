@@ -26,7 +26,7 @@ export default function Game() {
   // Pipe constants
   const pipeWidth = 60;
   const gapHeight = 120;
-  const constantTopHeight = 80; // FIXED: Constant height instead of random
+  const constantTopHeight = 80;
 
   const pipes = useMemo(
     () => [
@@ -35,14 +35,14 @@ export default function Game() {
         bottom: pipe1BottomRef,
         x: 600,
         passed: false,
-        topHeight: constantTopHeight, // FIXED: Use constant
+        topHeight: constantTopHeight,
       },
       {
         top: pipe2TopRef,
         bottom: pipe2BottomRef,
         x: 900,
         passed: false,
-        topHeight: constantTopHeight, // FIXED: Use constant
+        topHeight: constantTopHeight,
       },
     ],
     []
@@ -87,14 +87,13 @@ export default function Game() {
   useEffect(() => {
     const interval = setInterval(() => {
       pipes.forEach((pipePair) => {
-        // Move pipes slowly
-        pipePair.x -= 1.5;
+        // Move pipes from right to left
+        pipePair.x -= 2;
 
         // Reset pipes when they exit screen
         if (pipePair.x < -pipeWidth) {
-          pipePair.x = gameWidth + Math.random() * 200;
+          pipePair.x = gameWidth + 150;
           pipePair.passed = false;
-          // FIXED: Keep height constant, don't randomize
           pipePair.topHeight = constantTopHeight;
         }
 
@@ -110,21 +109,21 @@ export default function Game() {
           pipePair.bottom.current.style.left = pipePair.x + "px";
         }
 
-        // SCORING
+        // SCORING - Player successfully passed through the gap
         if (!pipePair.passed && pipePair.x + pipeWidth < playerX) {
           setScore((s) => s + 1);
           pipePair.passed = true;
         }
 
         // -------------------------
-        // FIXED COLLISION LOGIC
+        // COLLISION DETECTION
         // -------------------------
         const pipeLeft = pipePair.x;
         const pipeRight = pipePair.x + pipeWidth;
         const playerLeft = playerX;
         const playerRight = playerX + playerSize;
         
-        // Check horizontal overlap
+        // Check if player and pipe overlap horizontally
         const horizontalOverlap = playerRight > pipeLeft && playerLeft < pipeRight;
         
         if (horizontalOverlap) {
@@ -133,16 +132,15 @@ export default function Game() {
           const playerBottom = playerY;
           const playerTop = playerY + playerSize;
           
-          // Hit top pipe OR hit bottom pipe
-          if (playerTop > topPipeBottom && playerBottom < topPipeBottom) {
-            // Hit top pipe
-            alert("💥 GAME OVER!\nFinal Score: " + score);
+          // Check if player hit the top pipe (player is too high)
+          if (playerTop > topPipeBottom) {
+            alert("💥 GAME OVER! You hit the top pipe!\nFinal Score: " + score);
             window.location.reload();
           }
           
-          if (playerBottom < bottomPipeTop && playerTop > bottomPipeTop) {
-            // Hit bottom pipe
-            alert("💥 GAME OVER!\nFinal Score: " + score);
+          // Check if player hit the bottom pipe (player is too low)
+          if (playerBottom < (gameHeight - bottomPipeTop)) {
+            alert("💥 GAME OVER! You hit the bottom pipe!\nFinal Score: " + score);
             window.location.reload();
           }
         }
@@ -150,7 +148,7 @@ export default function Game() {
     }, 20);
 
     return () => clearInterval(interval);
-  }, [playerX, playerY, pipes, score]);
+  }, [playerX, playerY, pipes, score, gameWidth, gameHeight, playerSize, pipeWidth, constantTopHeight, gapHeight]);
 
   return (
     <div className="game-container">
