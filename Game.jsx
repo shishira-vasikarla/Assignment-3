@@ -1,151 +1,165 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import "./Game.css";
 
 export default function Game() {
   const playerRef = useRef(null);
 
-  // Game constants
-  const GAME_WIDTH = 600;
-  const GAME_HEIGHT = 300;
-  const PLAYER_SIZE = 50;
-  const PIPE_WIDTH = 60;
-  const GAP_HEIGHT = 120;
-  const GRAVITY = 0.5;
-  const JUMP_STRENGTH = -10;
-  const MOVE_SPEED = 1.8;
+  // Obstacle refs (two pipe pairs)
+  const pipe1TopRef = useRef(null);
+  const pipe1BottomRef = useRef(null);
+  const pipe2TopRef = useRef(null);
+  const pipe2BottomRef = useRef(null);
 
-  // Game state
+  // Game size
+  const gameWidth = 600;
+  const gameHeight = 300;
+
+  // Player size & movement
+  const playerSize = 50;
+  const [playerY, setPlayerY] = useState(0);
   const [playerX, setPlayerX] = useState(50);
-  const [playerY, setPlayerY] = useState(125);
-  const [velocity, setVelocity] = useState(0);
+  const [isJumping, setIsJumping] = useState(false);
+
+  // Score
   const [score, setScore] = useState(0);
-  const [gameOver, setGameOver] = useState(false);
-  const [gameStarted, setGameStarted] = useState(false);
 
-  // Pipes (two pipes)
-  const [pipes] = useState(() => [
-    {
-      topRef: React.createRef(),
-      bottomRef: React.createRef(),
-      x: 600,
-      passed: false,
-      topHeight: Math.random() * 120
-    },
-    {
-      topRef: React.createRef(),
-      bottomRef: React.createRef(),
-      x: 900,
-      passed: false,
-      topHeight: Math.random() * 120
-    }
-  ]);
+  // Pipe constants
+  const pipeWidth = 60;
+  const gapHeight = 120;
+  const constantTopHeight = 80; // FIXED: Constant height instead of random
 
-  // Jump
+  const pipes = useMemo(
+    () => [
+      {
+        top: pipe1TopRef,
+        bottom: pipe1BottomRef,
+        x: 600,
+        passed: false,
+        topHeight: constantTopHeight, // FIXED: Use constant
+      },
+      {
+        top: pipe2TopRef,
+        bottom: pipe2BottomRef,
+        x: 900,
+        passed: false,
+        topHeight: constantTopHeight, // FIXED: Use constant
+      },
+    ],
+    []
+  );
+
+  // Handle jump (simple upward-downward motion)
   const jump = useCallback(() => {
-    if (!gameStarted || gameOver) return;
-    setVelocity(JUMP_STRENGTH);
-  }, [gameOver, gameStarted, JUMP_STRENGTH]);
+    if (isJumping) return;
+    setIsJumping(true);
 
-  // Controls: Start game / Move / Jump
+    let count = 0;
+    const interval = setInterval(() => {
+      if (count < 15) setPlayerY((prev) => prev + 8);       // Move up
+      else if (count < 30) setPlayerY((prev) => prev - 8);  // Move down
+      else {
+        clearInterval(interval);
+        setIsJumping(false);
+      }
+      count++;
+    }, 20);
+  }, [isJumping]);
+
+  // Keyboard Movement
   useEffect(() => {
     const handleKey = (e) => {
-      if (e.code === "Space") {
-        if (!gameStarted) {
-          setGameStarted(true);
-          return;
-        }
-        jump();
+      if (e.code === "Space") jump();
+
+      if (e.code === "ArrowRight") {
+        setPlayerX((x) => Math.min(x + 10, gameWidth - playerSize));
       }
 
-      if (!gameStarted || gameOver) return;
-
-      if (e.code === "ArrowRight")
-        setPlayerX((x) => Math.min(x + 10, GAME_WIDTH - PLAYER_SIZE));
-
-      if (e.code === "ArrowLeft")
+      if (e.code === "ArrowLeft") {
         setPlayerX((x) => Math.max(x - 10, 0));
+      }
     };
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [gameStarted, gameOver, jump]);
+  }, [jump]);
 
-  // === GAME LOOP ===
+  // GAME LOOP: Move pipes, update height, collisions, scoring
   useEffect(() => {
-    if (!gameStarted || gameOver) return;
-
     const interval = setInterval(() => {
-      // GRAVITY
-      setVelocity((prev) => prev + GRAVITY);
-      setPlayerY((prev) => {
-        const newY = prev + velocity;
-        if (newY < 0 || newY > GAME_HEIGHT - PLAYER_SIZE) {
-          setGameOver(true);
-          return prev;
-        }
-        return newY;
-      });
+      pipes.forEach((pipePair) => {
+        // Move pipes slowly
+        pipePair.x -= 1.5;
 
-      // PIPE MOVEMENT + COLLISION + SCORING
-      pipes.forEach((pipe) => {
-        pipe.x -= MOVE_SPEED;
-
-        // Reset pipe if off screen
-        if (pipe.x < -PIPE_WIDTH) {
-          pipe.x = GAME_WIDTH + Math.random() * 200;
-          pipe.passed = false;
-          pipe.topHeight = Math.random() * 120;
+        // Reset pipes when they exit screen
+        if (pipePair.x < -pipeWidth) {
+          pipePair.x = gameWidth + Math.random() * 200;
+          pipePair.passed = false;
+          // FIXED: Keep height constant, don't randomize
+          pipePair.topHeight = constantTopHeight;
         }
 
-        // Apply pipe CSS
-        if (pipe.topRef.current && pipe.bottomRef.current) {
-          pipe.topRef.current.style.height = pipe.topHeight + "px";
-          pipe.topRef.current.style.left = pipe.x + "px";
+        const topHeight = pipePair.topHeight;
 
-          pipe.bottomRef.current.style.height =
-            GAME_HEIGHT - (pipe.topHeight + GAP_HEIGHT) + "px";
-          pipe.bottomRef.current.style.left = pipe.x + "px";
+        // Apply CSS to pipe DOM
+        if (pipePair.top.current && pipePair.bottom.current) {
+          pipePair.top.current.style.height = topHeight + "px";
+          pipePair.top.current.style.left = pipePair.x + "px";
+
+          pipePair.bottom.current.style.height =
+            gameHeight - (topHeight + gapHeight) + "px";
+          pipePair.bottom.current.style.left = pipePair.x + "px";
         }
 
-        // SCORE when passed pipe
-        if (!pipe.passed && pipe.x + PIPE_WIDTH < playerX) {
-          pipe.passed = true;
+        // SCORING
+        if (!pipePair.passed && pipePair.x + pipeWidth < playerX) {
           setScore((s) => s + 1);
+          pipePair.passed = true;
         }
 
-        // COLLISION DETECTION
+        // -------------------------
+        // FIXED COLLISION LOGIC
+        // -------------------------
+        const pipeLeft = pipePair.x;
+        const pipeRight = pipePair.x + pipeWidth;
         const playerLeft = playerX;
-        const playerRight = playerX + PLAYER_SIZE;
-        const playerTop = playerY + PLAYER_SIZE;
-        const playerBottom = playerY;
-
-        const pipeLeft = pipe.x;
-        const pipeRight = pipe.x + PIPE_WIDTH;
-
-        const touching =
-          playerRight > pipeLeft && playerLeft < pipeRight;
-
-        if (touching) {
-          const gapTop = pipe.topHeight;
-          const gapBottom = pipe.topHeight + GAP_HEIGHT;
-
-          const hitTop = playerTop < gapTop;
-          const hitBottom = playerBottom > gapBottom;
-
-          if (hitTop || hitBottom) setGameOver(true);
+        const playerRight = playerX + playerSize;
+        
+        // Check horizontal overlap
+        const horizontalOverlap = playerRight > pipeLeft && playerLeft < pipeRight;
+        
+        if (horizontalOverlap) {
+          const topPipeBottom = topHeight;
+          const bottomPipeTop = topHeight + gapHeight;
+          const playerBottom = playerY;
+          const playerTop = playerY + playerSize;
+          
+          // Hit top pipe OR hit bottom pipe
+          if (playerTop > topPipeBottom && playerBottom < topPipeBottom) {
+            // Hit top pipe
+            alert("💥 GAME OVER!\nFinal Score: " + score);
+            window.location.reload();
+          }
+          
+          if (playerBottom < bottomPipeTop && playerTop > bottomPipeTop) {
+            // Hit bottom pipe
+            alert("💥 GAME OVER!\nFinal Score: " + score);
+            window.location.reload();
+          }
         }
       });
     }, 20);
 
     return () => clearInterval(interval);
-  }, [pipes, velocity, playerX, playerY, gameOver, gameStarted]);
+  }, [playerX, playerY, pipes, score]);
 
   return (
     <div className="game-container">
       <div className="score">Score: {score}</div>
 
-      <div className="game-box" style={{ width: GAME_WIDTH, height: GAME_HEIGHT }}>
-        
+      <div
+        className="game-box"
+        style={{ width: gameWidth, height: gameHeight }}
+      >
         {/* Player */}
         <div
           ref={playerRef}
@@ -154,26 +168,12 @@ export default function Game() {
         ></div>
 
         {/* Pipes */}
-        {pipes.map((pipe, i) => (
+        {pipes.map((p, i) => (
           <React.Fragment key={i}>
-            <div ref={pipe.topRef} className="pipe top-pipe"></div>
-            <div ref={pipe.bottomRef} className="pipe bottom-pipe"></div>
+            <div ref={p.top} className="pipe top-pipe"></div>
+            <div ref={p.bottom} className="pipe bottom-pipe"></div>
           </React.Fragment>
         ))}
-
-        {/* Start Text */}
-        {!gameStarted && !gameOver && (
-          <div className="start-text">Press SPACE to Start</div>
-        )}
-
-        {/* Game Over */}
-        {gameOver && (
-          <div className="game-over-banner">
-            <h2>GAME OVER</h2>
-            <p>Final Score: {score}</p>
-            <button onClick={() => window.location.reload()}>Restart</button>
-          </div>
-        )}
       </div>
     </div>
   );
